@@ -30,10 +30,13 @@ const UserSchema = new Schema(
   {
     discordId: {
       type: String,
-      required: true,
     },
     robloxId: {
       type: String,
+    },
+    email: {
+      type: String,
+      default: null,
     },
     products: {
       type: [License],

@@ -14,6 +14,7 @@ app.get("/", (_, res) =>
   })
 );
 
+app.use(express.json());
 app.use("/api", routes);
 
 mongoose

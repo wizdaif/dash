@@ -1,4 +1,4 @@
-import config, { Messages } from "@config";
+import { getConfig } from "@utils";
 import commands from "../commands";
 import {
   ChatInputCommandInteraction,
@@ -10,6 +10,8 @@ import {
 import { onEvent } from "./event";
 
 export default onEvent(Events.InteractionCreate, async (interaction) => {
+  const config = await getConfig();
+    
   if (interaction.isChatInputCommand()) {
     const commandName = interaction.commandName;
     const subcommandName = [
@@ -32,7 +34,7 @@ export default onEvent(Events.InteractionCreate, async (interaction) => {
         flags: MessageFlags.Ephemeral,
         embeds: [
           new EmbedBuilder()
-            .setDescription(Messages.INVALID_COMMAND)
+            .setDescription(config.errorMessages.INVALID_COMMAND)
             .setColor(config.cosmetics.defaultEmbedColor),
         ],
       });
@@ -51,7 +53,7 @@ export default onEvent(Events.InteractionCreate, async (interaction) => {
         flags: MessageFlags.Ephemeral,
         embeds: [
           new EmbedBuilder()
-            .setDescription(Messages.INVALID_HANDLER)
+            .setDescription(config.errorMessages.INVALID_HANDLER)
             .setColor(config.cosmetics.defaultEmbedColor),
         ],
       });

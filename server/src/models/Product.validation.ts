@@ -7,10 +7,11 @@ import { userModel } from "./User";
 const createProductSchema = z.object({
   name: z.string().refine(
     async (name) => {
-      const exists = await productModel.countDocuments({
+      const exists = await productModel.exists({
         name: name.toString(),
       });
-      return exists != 0;
+
+      return exists;
     },
     { message: "Product already exist exist" }
   ),
@@ -24,15 +25,13 @@ const createProductSchema = z.object({
     .string()
     .default("inf")
     .refine((data) => data !== "inf" || !isNaN(parseInt(data!))),
-  price: z
-    .object({
-      robux: z.number(),
-      price: z.number(),
-    }),
+  price: z.object({
+    robux: z.number(),
+    price: z.number(),
+  }),
   isForSale: z.boolean().default(false),
   discordRoleId: z.string().optional(),
-  developerProductId
-  : z.string().optional(),
+  developerProductId: z.string().optional(),
 });
 
 const updateProductSchema = z.object({
@@ -83,10 +82,11 @@ const addWhitelistSchema = z
     username: z.string().optional(),
     productId: z.string().refine(
       async (id) => {
-        const exists = await productModel.countDocuments({
+        const exists = await productModel.exists({
           _id: id.toString(),
         });
-        return exists != 0;
+
+        return !exists;
       },
       { message: "Product does not exist" }
     ),
@@ -124,10 +124,11 @@ const addWhitelistSchema = z
 const transferWhitelistSchema = z.object({
   id: z.string().refine(
     async (id) => {
-      const exists = await productModel.countDocuments({
+      const exists = await productModel.exists({
         _id: id.toString(),
       });
-      return exists == 0;
+
+      return !exists;
     },
     { message: "Product does not exist" }
   ),
@@ -140,10 +141,11 @@ const removeWhitelistSchema = z
     userId: z.string(),
     productId: z.string().refine(
       async (id) => {
-        const exists = await productModel.countDocuments({
+        const exists = await productModel.exists({
           _id: id.toString(),
         });
-        return exists != 0;
+
+        return !exists;
       },
       { message: "Product does not exist" }
     ),

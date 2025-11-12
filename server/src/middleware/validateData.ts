@@ -3,9 +3,9 @@ import type { Request, Response, NextFunction } from "express";
 import * as z from "zod";
 
 export default function validateData(schema: z.ZodObject) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      schema.parse(req.body);
+      await schema.parseAsync(req.body);
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {

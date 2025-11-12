@@ -92,11 +92,6 @@ export interface RobloxUser {
   id_token: string;
 }
 
-export interface JWTData {
-  iat: number;
-  exp: number;
-}
-
 export type ApiResponse<T> =
   | { error: true; statusCode: number; message: string }
   | { error: false; statusCode: number; data: T };

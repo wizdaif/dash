@@ -3,6 +3,7 @@
 import type { ApiResponse } from "@/types";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 async function checkAuth() {
   const cookieStore = await cookies();
@@ -42,39 +43,45 @@ export async function clearToken() {
 }
 
 export async function auth<R>(
-  callback: (user: Me, token: string) => R | Promise<R>,
+  callback: (user: any, token: string) => R | Promise<R>,
+  options = { skipFetch: null, avoidRedirect: false } as any
 ) {
   const token = await checkAuth();
 
   if (!token) return null;
-  
-  try {
-    const request = await fetch(`${process.env.SERVER_URL}/users/me`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  if (options.skipFetch) return await callback(null, token);
 
-    const response: ApiResponse<Me> = await request.json();
+  try {
+    const request = await fetch(
+      `${process.env.SERVER_URL}/users/authenticated`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const response: ApiResponse<any> = await request.json();
 
     if (response.error) {
-      if (request.status === 400) throw new Error("Token missing"); // missing bearer
-      if (request.status === 401) throw new Error("Unauthorized"); // invalid session
+      if (request.status === 401 && !options.avoidRedirect) redirect("/login");
       if (request.status === 500) throw new Error(response.message); // server error
     } else return await callback(response.data, token);
   } catch (error: any) {
+    console.log("Error", error);
+
     if (error.message === "Unauthorized") {
       await clearToken();
 
+      // redirect("/login");
+
       return null;
-      // redirect("/#login");
     } else if (error.message === "Token missing") {
       await clearToken();
 
       return null;
-      // redirect("/#login");
     } else {
       // internal server error
 
@@ -86,4 +93,55 @@ export async function auth<R>(
   return null;
 }
 
-export const me = async () => auth<Me>(async (user) => user);
+export const me = async (avoidRedirect = false) => auth<any>(async (user) => user, { avoidRedirect });
+
+export const unlink = async (type: "roblox" | "discord") =>
+  auth(
+    async (_, token) => {
+      const request = await fetch(
+        `${process.env.SERVER_URL}/users/linked-account`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            type,
+          }),
+        }
+      );
+
+      const response: ApiResponse<{}> = await request.json();
+
+      if (response.error) {
+        if (request.status === 401) redirect("/login");
+        if (request.status === 500) throw new Error(response.message); // server error
+      } else return true;
+    },
+    { skipFetch: true } as any
+  );
+
+export const getAllUsers = async () =>
+  auth(
+    async (_, token) => {
+      const request = await fetch(
+        `${process.env.SERVER_URL}/admin/users`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+
+      const response: ApiResponse<{}[]> = await request.json();
+
+      if (response.error) {
+        if (request.status === 401) redirect("/login");
+        if (request.status === 500) throw new Error(response.message); // server error
+      } else return response.data;
+    },
+    { skipFetch: true } as any
+  );

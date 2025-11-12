@@ -1,3 +1,14 @@
+import {
+  ChannelType,
+  PermissionsBitField,
+  type Client,
+  type GuildMember,
+  type TextChannel,
+} from "discord.js";
+
+import { getConfig } from "models/Config";
+export { getConfig };
+
 export function middlwareify<T extends (...any: any) => void>(
   fn: T,
   middlewareFns?: ((next: () => void, ...args: Parameters<T>) => void)[]
@@ -14,14 +25,6 @@ export function middlwareify<T extends (...any: any) => void>(
       }
     : fn;
 }
-
-import {
-  ChannelType,
-  PermissionsBitField,
-  type Client,
-  type GuildMember,
-  type TextChannel,
-} from "discord.js";
 
 export function hasRole(member: GuildMember, roleId: string): boolean {
   return member.roles.cache.find((role) => role.id === roleId) != undefined;
@@ -63,15 +66,24 @@ export async function getPurchaseLogs(client: Client) {
   return purchaseLogs;
 }
 
-function makeid(length = 16) {
-  var result = "";
-  var characters = "ABCDEFGHIJKLMOPQRSTUVWXYZ123456789";
-  for (var i = 0; i <= length; i++) {
-    result += characters[Math.floor(Math.random() * characters.length)];
+export function formatString(
+  str: string,
+  {
+    roleId,
+    permission,
+  }: {
+    roleId?: string;
+    permission?: string[] | string;
   }
-  console.log(result);
-  result = result.match(/\d{1,4}/g)!.join("-");
-  return result;
-}
+) {
+  if (permission) {
+    if (typeof permission === "string")
+      str.replace("{permission}", permission);
+    if (typeof permission === "object")
+      str.replace("{permission}", permission.join(", "));
+  }
+  if (roleId)
+    str.replace("{roleId}", roleId).replace("{mention}", `<@${roleId}>`);
 
-console.log(makeid());
+  return str;
+}

@@ -1,13 +1,14 @@
 import { EmbedBuilder, MessageFlags } from "discord.js";
 import type { ReplyableInteractionMiddlewareFn } from "@types";
-import hasRole from "@utils";
-import config from "@config";
+
+import { formatString, getConfig, hasRole } from "@utils";
 
 export default function requiresRole(
   roleId: string
 ): ReplyableInteractionMiddlewareFn {
   return async (next, interaction) => {
     const author = interaction.member;
+    const config = await getConfig();
 
     if (!author) return;
     if (!hasRole(author, roleId))
@@ -16,7 +17,9 @@ export default function requiresRole(
             embeds: [
               new EmbedBuilder()
                 .setDescription(
-                  `It appears you're missing the role, <@&${roleId}> which is required to run this command.`
+                  formatString(config.errorMessages.MISSING_ROLE, {
+                    roleId,
+                  })
                 )
                 .setColor(config.cosmetics.defaultEmbedColor),
             ],
@@ -26,7 +29,9 @@ export default function requiresRole(
             embeds: [
               new EmbedBuilder()
                 .setDescription(
-                  `It appears you're missing the role, <@&${roleId}> which is required to run this command.`
+                  formatString(config.errorMessages.MISSING_ROLE, {
+                    roleId,
+                  })
                 )
                 .setColor(config.cosmetics.defaultEmbedColor),
             ],

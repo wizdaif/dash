@@ -1,12 +1,8 @@
 "use client";
 
-import type React from "react";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -17,38 +13,24 @@ import {
 import Link from "next/link";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { loginWithDiscord } = useAuth();
   const router = useRouter();
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault()
-  //   setError("")
-  //   setIsLoading(true)
-
-  //   const success = await login(username, password)
-  //   if (success) {
-  //     router.push("/dashboard")
-  //   } else {
-  //     setError("Invalid credentials")
-  //   }
-  //   setIsLoading(false)
-  // }
-
-  const handleDiscordLogin = async () => {
+  const handleDiscordLogin = () => {
     setIsLoading(true);
-    await loginWithDiscord();
-    router.push("/dashboard");
+    router.push("/api/discord")
+  };
+
+  const handleRobloxLogin = () => {
+    setIsLoading(true);
+    router.push("/api/roblox")
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-950 via-black to-violet-950">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-purple-950 via-black to-violet-950">
       <Card className="w-full max-w-md border-white/10 bg-black/40 backdrop-blur-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl font-bold text-center bg-linear-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
             Welcome Back
           </CardTitle>
           <CardDescription className="text-center text-white/60">
@@ -71,9 +53,9 @@ export default function LoginPage() {
             Continue with Discord
           </Button>
           <Button
-            onClick={handleDiscordLogin}
+            onClick={handleRobloxLogin}
             disabled={isLoading}
-            className="w-full bg-[#fff] hover:bg-[#E5E5E5] text-black"
+            className="w-full bg-white hover:bg-[#E5E5E5] text-black"
           >
             <svg
               width="31"

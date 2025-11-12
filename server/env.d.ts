@@ -1,4 +1,5 @@
 import type { TextChannel } from "discord.js";
+import type { ExtendedRequest } from "@types";
 
 declare global {
   var logs_channel: TextChannel | undefined;
@@ -21,7 +22,12 @@ declare global {
     interface ProcessEnv extends MongoENV, DiscordENV {
       PORT: string;
       JWT_SECRET: string;
+      API_KEY: string;
     }
+  }
+  
+  namespace Express {
+    interface Request extends ExtendedRequest {};
   }
 }
 

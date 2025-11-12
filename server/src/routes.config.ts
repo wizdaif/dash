@@ -14,8 +14,11 @@ export const POST_PRODUCT_REVIEW = GET_PRODUCT_REVIEWS;
 export const DELETE_PRODUCT_REVIEW = "/reviews/:id";
 
 // Users routes - dashboard
-export const GET_OWNED_PRODUCTS = "/users/profile";
+export const GET_OWNED_PRODUCTS = "/users/profile"; // ?id
+
 export const GET_AUTHENTICATED_USER = "/users/authenticated";
+export const POST_AUTHENTICATE_USER = "/users/authenticate";
+export const DELETE_ACCOUNT_LINK = "/users/linked-account";
 
 export const POST_WHITELIST_ADD = "/whitelist/allow";
 export const POST_WHITELIST_REMOVE = "/whitelist/revoke";

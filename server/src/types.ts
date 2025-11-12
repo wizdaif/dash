@@ -8,6 +8,7 @@ import type {
   ModalSubmitInteraction,
   UserContextMenuCommandInteraction,
 } from "discord.js";
+import type { Types } from "mongoose";
 
 export type MiddlewareFn<T extends (...any: any) => void> = (
   next: () => void,
@@ -46,4 +47,33 @@ export enum PurchaseType {
   Robux = "robux",
   Stripe = "stripe",
   Paypal = "paypal"
+}
+
+interface ERLocals {
+  admin: boolean;
+  data: any;
+  userId: string | null;
+}
+export interface ExtendedRequest {
+  locals: ERLocals;
+}
+
+export enum LinkStrategy {
+  Bloxlink = "bloxlink",
+  Standalone = "standalone",
+  Mixed = "mixed",
+}
+
+export type Config = {
+  linkStrategy: LinkStrategy,
+  admins: string[],
+  cosmetics: {
+    defaultEmbedColor: `#${string}`,
+  },
+  errorMessages: {
+    INVALID_COMMAND: string;
+    INVALID_HANDLER: string;
+    MISSING_PERMISSION: string;
+    MISSING_ROLE: string;
+  }
 }

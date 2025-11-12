@@ -17,61 +17,115 @@ import {
   updateProductSchema,
 } from "models/Product.validation";
 
+import {
+  addWhitelist,
+  authenticateUser,
+  createProduct,
+  createProductReview,
+  deleteProduct,
+  deleteProductReview,
+  getAllProducts,
+  getAllUsers,
+  getAuthenticatedUser,
+  getOwnedProducts,
+  getProduct,
+  getProductReviews,
+  getRecentPurchases,
+  getSiteAnalytics,
+  getSiteConfig,
+  removeAccountLink,
+  removeWhitelist,
+  transferWhitelist,
+  updateProduct,
+} from "controllers";
+import { authenticateUserSchema, removeUserLinkSchema } from "models/User.validation";
+
 const router = express.Router();
 
-router.get(routes.GET_SITE_CONFIG, isAuthenticated);
+router.get(routes.GET_SITE_CONFIG, isAuthenticated, getSiteConfig);
 
-router.get(routes.GET_PRODUCTS);
-router.get(routes.GET_PRODUCT_LOOKUP);
+router.get(routes.GET_PRODUCTS, getAllProducts);
+router.get(routes.GET_PRODUCT_LOOKUP, getProduct);
 
 router.post(
   routes.POST_CREATE_PRODUCT,
   isAuthenticated,
   isAdmin,
-  validateData(createProductSchema)
+  validateData(createProductSchema),
+  createProduct
 );
 router.put(
   routes.PUT_UPDATE_PRODUCT,
   isAuthenticated,
   isAdmin,
-  validateData(updateProductSchema)
+  validateData(updateProductSchema),
+  updateProduct
 );
-router.delete(routes.DELETE_PRODUCT, isAuthenticated, isAdmin);
+router.delete(routes.DELETE_PRODUCT, isAuthenticated, isAdmin, deleteProduct);
 
-router.get(routes.GET_PRODUCT_REVIEWS);
+router.get(routes.GET_PRODUCT_REVIEWS, getProductReviews);
 router.post(
   routes.POST_PRODUCT_REVIEW,
   isAuthenticated,
   validateData(createProductReviewSchema),
   ownsProduct("params"),
+  createProductReview
 );
-router.delete(routes.DELETE_PRODUCT_REVIEW, isAuthenticated);
+router.delete(
+  routes.DELETE_PRODUCT_REVIEW,
+  isAuthenticated,
+  deleteProductReview
+);
 
-router.get(routes.GET_OWNED_PRODUCTS); //
-router.get(routes.GET_AUTHENTICATED_USER, isAuthenticated);
+router.get(routes.GET_OWNED_PRODUCTS, getOwnedProducts);
+router.get(
+  routes.GET_AUTHENTICATED_USER,
+  isAuthenticated,
+  getAuthenticatedUser
+);
 
-// edit the isAuthenticated handler to also check the db for any api keys, then we ignore the admin middleware
+router.post(
+  routes.POST_AUTHENTICATE_USER,
+  validateData(authenticateUserSchema),
+  authenticateUser
+);
+
+router.delete(
+  routes.DELETE_ACCOUNT_LINK,
+  isAuthenticated,
+  validateData(removeUserLinkSchema),
+  removeAccountLink
+);
+
 router.post(
   routes.POST_WHITELIST_ADD,
   isAuthenticated,
   isAdmin,
-  validateData(addWhitelistSchema)
+  validateData(addWhitelistSchema),
+  addWhitelist
 );
 router.post(
   routes.POST_WHITELIST_REMOVE,
   isAuthenticated,
   isAdmin,
-  validateData(removeWhitelistSchema)
+  validateData(removeWhitelistSchema),
+  removeWhitelist
 );
 router.post(
   routes.POST_TRANSFER_PRODUCT,
   isAuthenticated,
   validateData(transferWhitelistSchema),
-  ownsProduct("body")
+  ownsProduct("body"),
+  transferWhitelist
 );
 
-router.get(routes.GET_USERS, isAuthenticated, isAdmin);
-router.get(routes.GET_ANALYTICS, isAuthenticated, isAdmin);
-router.get(routes.GET_RECENT_PURCHASES, isAuthenticated, isAdmin);
+router.get(routes.GET_USERS, isAuthenticated, isAdmin, getAllUsers);
+router.get(routes.GET_ANALYTICS, isAuthenticated, isAdmin, getSiteAnalytics);
+router.get(
+  routes.GET_RECENT_PURCHASES,
+  isAuthenticated,
+  isAdmin,
+  getRecentPurchases
+);
 
 export default router;

@@ -1,7 +1,7 @@
-import { sign, verify } from "jsonwebtoken";
-import { DiscordUser, JWTData } from "@/types";
-import { redirect } from "next/navigation";
+import { DiscordUser } from "@/types";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { clearToken, setToken } from "@/lib/actions";
 
 const APP_URI = process.env.APP_URL;
 
@@ -18,33 +18,37 @@ const OAUTH_QS = new URLSearchParams({
 const OAUTH_URI = `https://discord.com/api/oauth2/authorize?${OAUTH_QS}`;
 
 const auth = async (req: Request) => {
+  const cook = await cookies();
+  const token = cook.get("token");
   const query = new URL(req.url as string).searchParams;
 
   if (query.get("error")) {
     return redirect(`/?error=${query.get("error")}`);
   }
 
-  if (!query.get("code") || typeof query.get("code") !== "string") {
-    redirect(OAUTH_URI);
-  }
-
-  if (cookies().get("token")) {
-    // call server & verify user
-    const token = cookies().get("token");
-
-    const request = await fetch(`${process.env.SERVER_URL}/api/me`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token as unknown as string,
-      },
-    });
+  if (token && token.value) {
+    const request = await fetch(
+      `${process.env.SERVER_URL}/users/authenticated`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token.value}`,
+        },
+      }
+    );
 
     if (request.status === 200) {
-        redirect("/dashboard")
-    } if (request.status === 500) {
-        // handle bs
-    }
+      const { data } = await request.json();
+
+      if (data.discordLinked) redirect("/dashboard");
+    } else if (request.status === 500)
+      redirect(`/?error=Error while authenticating with Discord`);
+    else await clearToken();
+  }
+
+  if (!query.get("code") || typeof query.get("code") !== "string") {
+    redirect(OAUTH_URI);
   }
 
   const body = new URLSearchParams({
@@ -66,7 +70,6 @@ const auth = async (req: Request) => {
   ).then((res) => res.json());
 
   if (!access_token || typeof access_token !== "string") {
-    console.log("no token redirect");
     return redirect(OAUTH_URI);
   }
 
@@ -81,14 +84,33 @@ const auth = async (req: Request) => {
     return redirect(OAUTH_URI);
   }
 
-  cookies().set("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "lax",
-    path: "/",
+  cook.set(
+    "avatar_url",
+    `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.${
+      me.avatar.startsWith("a_") ? "gif" : "png"
+    }`
+  );
+
+  const request = await fetch(`${process.env.SERVER_URL}/users/authenticate`, {
+    method: "POST",
+    headers: {
+      ...(token ? {Authorization: `Bearer ${token.value}`} : {}),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      type: "discord",
+      id: me.id,
+      email: me.email,
+      username: me.username,
+    }),
   });
 
-  redirect("/dashboard");
+  if (request.status === 200) {
+    const response = await request.json();
+
+    setToken(response.data.token);
+    redirect("/dashboard");
+  } else redirect(`/?error=Error while authenticating with Discord`);
 };
 
 export { auth as GET };
