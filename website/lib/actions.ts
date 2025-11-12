@@ -93,7 +93,8 @@ export async function auth<R>(
   return null;
 }
 
-export const me = async (avoidRedirect = false) => auth<any>(async (user) => user, { avoidRedirect });
+export const me = async (avoidRedirect = false) =>
+  auth<any>(async (user) => user, { avoidRedirect });
 
 export const unlink = async (type: "roblox" | "discord") =>
   auth(
@@ -125,16 +126,13 @@ export const unlink = async (type: "roblox" | "discord") =>
 export const getAllUsers = async () =>
   auth(
     async (_, token) => {
-      const request = await fetch(
-        `${process.env.SERVER_URL}/admin/users`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          }
-        }
-      );
+      const request = await fetch(`${process.env.SERVER_URL}/admin/users`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const response: ApiResponse<{}[]> = await request.json();
 
@@ -145,3 +143,47 @@ export const getAllUsers = async () =>
     },
     { skipFetch: true } as any
   );
+
+export const getProductData = async (id: string) => {
+  try {
+    const request = await fetch(`${process.env.SERVER_URL}/products/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response: ApiResponse<{}> = await request.json();
+
+    if (response.error) {
+      if (request.status === 500) throw new Error(response.message); // server error
+    } else return response.data;
+  } catch (error: any) {
+    console.log("Error while fetching product data", error);
+
+    return null;
+  }
+};
+
+export const getProducts = async () => {
+  try {
+    const request = await fetch(`${process.env.SERVER_URL}/products`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response: ApiResponse<{}[]> = await request.json();
+
+    if (response.error) {
+      if (request.status === 500) throw new Error(response.message); // server error
+    } else return response.data;
+  } catch (error: any) {
+    console.log("Error while fetching products", error);
+
+    return [];
+  }
+
+  return [];
+};

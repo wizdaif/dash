@@ -23,6 +23,8 @@ async function getAllProducts(req: Request, res: Response) {
     )
     .lean();
 
+  console.log(products);
+
   return res.status(200).json({
     error: false,
     data: products,
