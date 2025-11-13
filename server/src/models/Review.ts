@@ -16,10 +16,14 @@ const ReviewSchema = new Schema(
       ref: "Products",
       required: true,
     },
+    username: {
+      type: String,
+      default: null,
+    },
     comment: {
-        type: String,
-        default: null
-    }
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

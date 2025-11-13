@@ -1,0 +1,80 @@
+services:
+  mongodb:
+    image: mongo
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    volumes:
+      - mongo_data:/data/db
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: backend-server
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      SERVER_PORT: ${SERVER_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY: ${API_KEY}
+      MONGO_URI: mongodb://mongo:27017/dash
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      GUILD_ID: ${GUILD_ID}
+      ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
+      PURCHASE_LOGS_CHANNEL_ID: ${PURCHASE_LOGS_CHANNEL_ID}
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT}/"]
+      interval: 5s
+      retries: 20
+      start_period: 5s
+
+
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    container_name: website
+    restart: unless-stopped
+    depends_on:
+      - server
+    env_file:
+      - .env
+    environment:
+      WEBSITE_PORT: ${WEBSITE_PORT}
+      APP_URL: "http://localhost:${WEBSITE_PORT}"
+      SERVER_URL: "http://server:${SERVER_PORT}"
+      DISCORD_OAUTH_CLIENT_ID: ${DISCORD_OAUTH_CLIENT_ID}
+      DISCORD_OAUTH_CLIENT_SECRET: ${DISCORD_OAUTH_CLIENT_SECRET}
+      ROBLOX_OAUTH_ID: ${ROBLOX_OAUTH_ID}
+      ROBLOX_OAUTH_SECRET: ${ROBLOX_OAUTH_SECRET}
+    ports:
+      - "${WEBSITE_PORT}:${WEBSITE_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${WEBSITE_PORT}"]
+      interval: 5s
+      retries: 20
+      start_period: 5s
+  notifier:
+    image: busybox:latest
+    depends_on:
+      server:
+        condition: service_healthy
+      website:
+        condition: service_healthy
+    entrypoint: sh -c "echo '✅ Services are running!'; \
+                        echo 'API url: http://localhost:${SERVER_PORT}'; \
+                        echo 'Website url: http://localhost:${WEBSITE_PORT}'; \
+                        tail -f /dev/null"
+
+volumes:
+  mongo_data:

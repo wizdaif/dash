@@ -66,6 +66,14 @@ export async function getPurchaseLogs(client: Client) {
   return purchaseLogs;
 }
 
+export async function getGuildOwner(client: Client) {
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+
+  if (!guild) return null;
+
+  return guild.ownerId;
+}
+
 export function formatString(
   str: string,
   {

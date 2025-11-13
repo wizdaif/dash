@@ -1,11 +1,22 @@
 export interface Product {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   category: string;
   tags: string[];
-  price: number;
-  images: string[];
+  price: {
+    price: number;
+    robux: number;
+  };
+  stock: "infinite" | number;
+  images: {
+    type: "image" | "decal";
+    filetype?: string;
+    name?: string;
+    value: string;
+  }[];
+  features: string[];
+  reviews?: Review[];
 }
 
 export interface OwnedProduct {
@@ -19,12 +30,10 @@ export interface OwnedProduct {
 
 export interface Review {
   id: string;
-  productId: string;
-  userId: string;
   username: string;
   rating: number;
   comment: string;
-  date: string;
+  createdAt: string;
 }
 
 export interface Analytics {

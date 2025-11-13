@@ -1,5 +1,5 @@
 import { ProductImageType } from "@types";
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Schema, SchemaTypes } from "mongoose";
 
 const ProductImage = new Schema(
   {
@@ -8,8 +8,14 @@ const ProductImage = new Schema(
       enum: ProductImageType,
       required: true,
     },
-    value: {
+    name: {
       type: String,
+    },
+    filetype: {
+      type: String,
+    },
+    value: {
+      type: SchemaTypes.Mixed,
       required: true,
     },
   },
@@ -34,8 +40,8 @@ const ProductSchema = new Schema(
       default: [],
     },
     stock: {
-      type: String,
-      default: "inf",
+      type: SchemaTypes.Mixed,
+      default: "infinite",
     },
     price: {
       robux: {
@@ -44,16 +50,30 @@ const ProductSchema = new Schema(
       },
       price: {
         type: Number,
-        default: 0,
+        default: -1,
       },
     },
     file: {
-      type: String,
-      default: null,
+      name: {
+        type: String,
+        default: null
+      },
+      type:  {
+        type: String,
+        default: null
+      },
+      buffer:  {
+        type: Buffer,
+        default: null
+      },
     },
     isForSale: {
       type: Boolean,
       default: false,
+    },
+    features: {
+      type: [String],
+      default: []
     },
     images: {
       type: [ProductImage],
@@ -72,5 +92,6 @@ const ProductSchema = new Schema(
     timestamps: true,
   }
 );
+
 
 export const productModel = mongoose.model("products", ProductSchema);

@@ -8,7 +8,6 @@ import type {
   ModalSubmitInteraction,
   UserContextMenuCommandInteraction,
 } from "discord.js";
-import type { Types } from "mongoose";
 
 export type MiddlewareFn<T extends (...any: any) => void> = (
   next: () => void,
@@ -40,13 +39,13 @@ export enum LicenseGrantType {
 
 export enum ProductImageType {
   RobloxDecal = "decal",
-  Image = "png"
+  Image = "image",
 }
 
 export enum PurchaseType {
   Robux = "robux",
   Stripe = "stripe",
-  Paypal = "paypal"
+  Paypal = "paypal",
 }
 
 interface ERLocals {
@@ -65,15 +64,21 @@ export enum LinkStrategy {
 }
 
 export type Config = {
-  linkStrategy: LinkStrategy,
-  admins: string[],
+  linkStrategy: LinkStrategy;
+  admins: string[];
+  website: {
+    TAG_CONTENT: string;
+    HEADER_CONTENT: string;
+    SHORT_DESC: string;
+    STRIPE_PUBLIC_KEY: string;
+  };
   cosmetics: {
-    defaultEmbedColor: `#${string}`,
-  },
+    defaultEmbedColor: `#${string}`;
+  };
   errorMessages: {
     INVALID_COMMAND: string;
     INVALID_HANDLER: string;
     MISSING_PERMISSION: string;
     MISSING_ROLE: string;
-  }
-}
+  };
+};

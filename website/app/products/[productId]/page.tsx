@@ -1,7 +1,6 @@
-import { mockProducts, getMockReviews } from "@/lib/mock-data";
-import type { Product, Review } from "@/types";
-
 import ProductClient from "./page.client";
+import { getProductData, getProductReviews } from "@/lib/actions";
+import { redirect } from "next/navigation";
 
 export default async function ProductDetailPage({
   params,
@@ -10,5 +9,11 @@ export default async function ProductDetailPage({
 }) {
   params = await params;
 
-  return <ProductClient params={params} />;
+  const product = await getProductData(params.productId);
+
+  if (!product) redirect("/");
+
+  const reviews = (await getProductReviews(params.productId))!;
+
+  return <ProductClient product={{ ...product, reviews }} />;
 }

@@ -4,9 +4,9 @@ import mongoose, { Schema, Types } from "mongoose";
 const PurchaseSchema = new Schema(
   {
     type: {
-        type: String,
-        enum: PurchaseType,
-        required: true,
+      type: String,
+      enum: PurchaseType,
+      required: true,
     },
     user: {
       type: Types.ObjectId,
@@ -14,8 +14,8 @@ const PurchaseSchema = new Schema(
       required: true,
     },
     price: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: true,
     },
     isGift: {
       type: Boolean,

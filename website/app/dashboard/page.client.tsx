@@ -2,7 +2,7 @@
 
 import { TableHeader } from "@/components/ui/table";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -27,7 +27,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -49,13 +51,40 @@ import {
 } from "recharts";
 import Image from "next/image";
 import type { OwnedProduct, Review, Product } from "@/types";
+
 import {
-  getMockAnalytics,
-  getMockOwnedProducts,
-  getMockReviews,
-  mockProducts,
-} from "@/lib/mock-data";
-import { unlink } from "@/lib/actions";
+  createProduct,
+  deleteProduct,
+  unlink,
+  updateProduct,
+  updateProductByKey,
+} from "@/lib/actions";
+import FileUploadPreview from "@/components/file-preview";
+import { base64ToFile, deepCompare } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
+interface NewProduct {
+  name: string;
+  description: string;
+  category: string;
+  stock: string;
+  price: string;
+  robux: string;
+  tags?: string;
+  file?: any;
+  decals?: string;
+  features?: string;
+  discordRoleId?: string;
+  developerProductId?: string;
+}
+
+interface Image {
+  name: string;
+  type: string;
+  preview?: string;
+  buffer: Promise<ArrayBuffer>;
+}
 
 export default function DashboardPage({
   user,
@@ -67,29 +96,65 @@ export default function DashboardPage({
   avatar?: any;
 }) {
   const router = useRouter();
-  const [ownedProducts, _] = useState<OwnedProduct[]>(user.products);
-  const [selectedProduct, setSelectedProduct] = useState<OwnedProduct | null>(
+
+  const [isEditMode, setEditMode] = useState(false);
+  const [images, setImages] = useState<Image[]>([]);
+  const [searchValue, setSearchValue] = useState("");
+  const [tempUser, setTempUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any>(
     null
   );
-  const [reviews, setReviews] = useState<Review[]>([]);
+
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviews, setReviews] = useState<Review[]>([]);
+
   const [transferEmail, setTransferEmail] = useState("");
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
 
-  const [analytics, setAnalytics] = useState(getMockAnalytics());
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [newProduct, setNewProduct] = useState({
+  const [users, setMockUsers] = useState(data?.users ?? []);
+  const [analytics, setAnalytics] = useState(data?.analytics ?? {});
+  const [recentPurchases, setRecentPurchases] = useState(data?.purchases ?? {});
+
+  const [allProducts, setAllProducts] = useState<Product[]>(
+    data?.products ?? []
+  );
+
+  const [newProduct, setNewProduct] = useState<NewProduct>({
     name: "",
     description: "",
     category: "",
+    stock: "infinite",
     tags: "",
     price: "",
+    robux: "",
+    file: null,
+    decals: "",
+    features: "",
+    discordRoleId: "",
+    developerProductId: "",
   });
-  const [users, setMockUsers] = useState(data?.users ?? []);
+
+  const ownedProducts = useMemo(() => {
+    const products = user.products.slice();
+
+    return products.map(({ images, ...product }: Product) => ({
+      images: images.map((image: any) => {
+        const file = base64ToFile(image.value, image.name!, image.filetype!);
+
+        return {
+          name: file.name,
+          type: file.type,
+          buffer: file.arrayBuffer(),
+          preview: URL.createObjectURL(file),
+        };
+      }),
+      ...product,
+    }));
+  }, [user.products]);
 
   const handleLogout = () => router.push("/api/logout");
-
   const handleLinkDiscord = () => router.push("/login?force=discord");
   const handleLinkRoblox = () => router.push("/login?force=roblox");
 
@@ -100,7 +165,7 @@ export default function DashboardPage({
       );
 
     if (confirm("Are you sure you want to unlink your Roblox account?")) {
-      unlink("roblox").then(router.refresh)
+      unlink(user._id, "roblox").then(router.refresh);
     }
   };
 
@@ -111,7 +176,7 @@ export default function DashboardPage({
       );
 
     if (confirm("Are you sure you want to unlink your Discord account?")) {
-      unlink("discord").then(router.refresh)
+      unlink(user._id, "discord").then(router.refresh);
     }
   };
 
@@ -119,21 +184,19 @@ export default function DashboardPage({
     setRevealedKeys((prev) => new Set(prev).add(productId));
   };
 
-  const handleViewReviews = (product: OwnedProduct) => {
+  const handleViewReviews = (product: any) => {
     setSelectedProduct(product);
-    setReviews(getMockReviews(product.productId));
+    setReviews(product.reviews);
   };
 
   const handleSubmitReview = () => {
     if (selectedProduct) {
       const newReview: Review = {
         id: `review_${Date.now()}`,
-        productId: selectedProduct.productId,
-        userId: user?.id || "",
         username: user?.username || "",
         rating: rating,
         comment: reviewComment,
-        date: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString().split("T")[0],
       };
       setReviews([newReview, ...reviews]);
       setReviewComment("");
@@ -148,32 +211,182 @@ export default function DashboardPage({
     }
   };
 
-  const handleCreateProduct = () => {
-    if (newProduct.name && newProduct.price) {
-      const product: Product = {
-        id: `${allProducts.length + 1}`,
-        name: newProduct.name,
-        description: newProduct.description,
-        category: newProduct.category,
-        tags: newProduct.tags.split(",").map((t) => t.trim()),
-        price: Number.parseFloat(newProduct.price),
-        images: ["/placeholder.svg?height=400&width=600"],
-      };
-      setAllProducts([...allProducts, product]);
-      setNewProduct({
-        name: "",
-        description: "",
-        category: "",
-        tags: "",
-        price: "",
+  const handleCreateProduct = async () => {
+    if (
+      newProduct.stock.length &&
+      (newProduct.stock !== "infinite" ||
+        (isNaN(parseInt(newProduct.stock)) && parseInt(newProduct.stock) > -1))
+    )
+      return alert(
+        'Product stock must be "inf" for infinite or a non-zero integer!'
+      );
+
+    if (!newProduct.name.length) return alert("Product must have a name!");
+    if (!newProduct.description.length)
+      return alert("Product must have a description!");
+    if (!newProduct.category.length)
+      return alert("Product must have a category!");
+
+    if (!newProduct.robux.length && !newProduct.price.length)
+      return alert("Product must have a price ($ or Robux)!");
+
+    if (newProduct.robux.length && isNaN(parseInt(newProduct.robux)))
+      return alert("Product price in robux must be a number!");
+
+    if (newProduct.price.length && isNaN(parseFloat(newProduct.price)))
+      return alert("Product price must be a number!");
+
+    const base64Images = await Promise.all(
+      images.map(async (img) => ({ ...img, buffer: await img.buffer }))
+    );
+
+    const payload = {
+      name: newProduct.name,
+      description: newProduct.description,
+      category: newProduct.category,
+      stock: newProduct.stock,
+      tags: newProduct.tags?.length ? newProduct.tags.split(", ") : [],
+      features: newProduct.features?.length
+        ? newProduct.features.split("; ")
+        : [],
+      price: {
+        price: newProduct.price.length && parseFloat(newProduct.price),
+        robux: newProduct.robux.length && parseInt(newProduct.robux),
+      },
+      file: newProduct.file
+        ? {
+            name: newProduct.file?.fileName,
+            type: newProduct.file?.fileType,
+            buffer: newProduct.file?.fileData,
+          }
+        : undefined,
+      images: base64Images.map((img) => ({
+        name: img.name,
+        type: img.type,
+        buffer: Buffer.from(img.buffer).toString("base64"),
+      })),
+      decals:
+        newProduct.decals?.trim().length ?? 0 > 0
+          ? newProduct.decals?.split(", ")
+          : [],
+      discordRoleId: newProduct.discordRoleId?.length
+        ? newProduct.discordRoleId
+        : undefined,
+      developerProductId: newProduct.developerProductId?.length
+        ? newProduct.developerProductId
+        : undefined,
+    };
+
+    if (!isEditMode) {
+      createProduct(payload).then((res) => {
+        console.log(res);
+        if (!res) return alert("Error while creating product!");
+
+        alert("Product created successfully!");
+
+        router.refresh();
       });
-      alert("Product created successfully!");
+    } else {
+      const original = {
+        name: selectedProduct!.name,
+        description: selectedProduct!.description,
+        category: selectedProduct!.category,
+        stock: selectedProduct!.stock,
+        tags: selectedProduct!.tags,
+        features: selectedProduct!.features,
+        price: {
+          price: selectedProduct!.price!.price,
+          robux: selectedProduct!.price!.robux,
+        },
+        file: {
+          name: selectedProduct!.file?.name,
+          type: selectedProduct!.file?.type,
+          buffer: selectedProduct!.file?.buffer,
+        },
+        images: selectedProduct!.images
+          .filter((i: any) => i.type === "image")
+          .map((img: any) => ({
+            name: img.name,
+            type: img.filetype,
+            buffer: img.value,
+          })),
+        decals: selectedProduct!.images
+          ?.filter((i: any) => i.type === "image")
+          .map((d: any) => d.value),
+        discordRoleId: selectedProduct!.discordRoleId?.length
+          ? selectedProduct!.discordRoleId
+          : undefined,
+        developerProductId: selectedProduct!.developerProductId
+          ? selectedProduct!.developerProductId
+          : undefined,
+      };
+
+      const updatedFields = deepCompare(original, payload);
+
+      if (Object.keys(updatedFields).length) {
+        updateProduct(selectedProduct!._id, updatedFields).then((res) => {
+          if (!res) return alert("bro error: " + res);
+
+          alert("Successfully updated product, please refresh!");
+        });
+      }
     }
   };
 
+  const handleProductDeletion = async (productId: string) => {
+    if (confirm("Are you sure you want to delete this product?")) {
+      deleteProduct(productId).then((res) => {
+        if (!res) return alert("Error while deleting product");
+
+        alert("Deleted product!");
+      });
+    }
+  };
+  const handleProductVisibility = (productId: string, value: boolean) =>
+    updateProductByKey(productId, "isForSale", value);
+
+  const editProduct = async (product: any) => {
+    setEditMode(true);
+    setSelectedProduct(product);
+
+    setNewProduct({
+      ...product,
+      tags: product.tags.join(", "),
+      features: product.features.join("; "),
+      price: product.price.price.toString(),
+      robux: product.price.robux.toString(),
+      file: {
+        fileName: product.file.name,
+        fileType: product.file.type,
+        fileData: product.file.buffer,
+      },
+      decals: product.images
+        .filter((i: any) => i.type === "decal")
+        .map((d: any) => d.value)
+        .join(", "),
+    });
+
+    setImages(
+      await Promise.all(
+        product.images
+          .filter((i: any) => i.type === "image")
+          .map(async (image: any) => {
+            const file = base64ToFile(image.value, image.name, image.filetype);
+
+            return {
+              name: file.name,
+              type: file.type,
+              buffer: await file.arrayBuffer(),
+              preview: URL.createObjectURL(file),
+            };
+          })
+      )
+    );
+  };
+
   const handleToggleUserStatus = (userId: string) => {
-    setMockUsers((users) =>
-      users.map((u) =>
+    setMockUsers((users: any) =>
+      users.map((u: any) =>
         u.id === userId
           ? { ...u, status: u.status === "active" ? "banned" : "active" }
           : u
@@ -181,11 +394,33 @@ export default function DashboardPage({
     );
   };
 
+  const handleUserProfile = (user: any) => {
+    setSelectedUser(user);
+    setTempUser(user);
+  };
+
   const handleDeleteUser = (userId: string) => {
     if (confirm("Are you sure you want to delete this user?")) {
-      setMockUsers((users) => users.filter((u) => u.id !== userId));
+      setMockUsers((users: any) => users.filter((u: any) => u.id !== userId));
     }
   };
+
+  const handleUnlinkUserDiscord = () => {
+    if (confirm("Are you sure you want to unlink this users Discord?")) {
+      unlink(selectedUser._id, "discord").then(router.refresh);
+    }
+  };
+
+  const handleUnlinkUserRoblox = () => {
+    if (confirm("Are you sure you want to unlink this users Roblox?")) {
+      unlink(selectedUser._id, "roblox").then(router.refresh);
+    }
+  };
+
+  const filteredUsers = useMemo(
+    () => users.filter((user: any) => user.robloxId.includes(searchValue)),
+    [searchValue]
+  );
 
   return (
     <div className="min-h-screen bg-linear-to-br from-purple-950 via-black to-violet-950">
@@ -262,7 +497,7 @@ export default function DashboardPage({
               </Card>
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
-                {ownedProducts.map((owned) => (
+                {ownedProducts.map((owned: any) => (
                   <Card
                     key={owned.id}
                     className="border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden"
@@ -382,7 +617,7 @@ export default function DashboardPage({
                                         {review.username}
                                       </span>
                                       <span className="text-sm text-white/60">
-                                        {review.date}
+                                        {review.createdAt}
                                       </span>
                                     </div>
                                     <div className="text-yellow-400">
@@ -469,7 +704,7 @@ export default function DashboardPage({
                     </div>
                     <div>
                       <h3 className="text-white font-semibold">Discord</h3>
-                      <p className="text-white/60 text-sm">
+                      <div className="text-white/60 text-sm">
                         {user.discordLinked ? (
                           <p className="text-white/60 text-sm">
                             {user.discordId}
@@ -477,7 +712,7 @@ export default function DashboardPage({
                         ) : (
                           <p className="text-white/40 text-sm">Not connected</p>
                         )}
-                      </p>
+                      </div>
                     </div>
                   </div>
                   {user.discordLinked ? (
@@ -595,7 +830,7 @@ export default function DashboardPage({
                       </CardHeader>
                       <CardContent>
                         <p className="text-3xl font-bold text-white">
-                          {analytics.activeUsers}
+                          {analytics.totalUsers}
                         </p>
                         <p className="text-xs text-white/60 mt-1">
                           All customers
@@ -637,7 +872,7 @@ export default function DashboardPage({
                   <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
                     <CardHeader>
                       <CardTitle className="text-white">
-                        Recent Purchases
+                        Recent Purchases (last 20)
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -659,22 +894,26 @@ export default function DashboardPage({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {analytics.recentPurchases.map((purchase) => (
+                          {recentPurchases.map((purchase: any) => (
                             <TableRow
-                              key={purchase.id}
+                              key={purchase._id}
                               className="border-white/10"
                             >
                               <TableCell className="text-white">
-                                {purchase.productName}
+                                {purchase.products
+                                  .map((product: any) => product.name)
+                                  .join(", ")}
                               </TableCell>
                               <TableCell className="text-white">
-                                {purchase.username}
+                                {purchase.type === "robux"
+                                  ? purchase.user.robloxId
+                                  : purchase.user.discordID}
                               </TableCell>
                               <TableCell className="text-white">
-                                ${purchase.amount}
+                                ${purchase.price}
                               </TableCell>
                               <TableCell className="text-white">
-                                {purchase.date}
+                                {purchase.createdAt}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -685,14 +924,147 @@ export default function DashboardPage({
                 </TabsContent>
 
                 <TabsContent value="users" className="space-y-6">
+                  {selectedUser && (
+                    <div>
+                      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
+                        <CardHeader>
+                          <CardTitle className="text-white">
+                            Manage User
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <label className="text-sm text-white/60">
+                                Roblox ID
+                              </label>
+                              <div className="flex space-x-3">
+                                <Input
+                                  placeholder="Premium Shader Pack"
+                                  value={selectedUser.robloxId}
+                                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                                />
+                                {selectedUser?.robloxId && (
+                                  <Button
+                                    variant="destructive"
+                                    onClick={handleUnlinkUserRoblox}
+                                  >
+                                    Unlink
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm text-white/60">
+                                Discord ID
+                              </label>
+                              <div className="flex space-x-3">
+                                <Input
+                                  placeholder="Shaders"
+                                  value={selectedUser.discordId}
+                                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                                />
+                                {selectedUser?.discordId && (
+                                  <Button
+                                    variant="destructive"
+                                    onClick={handleUnlinkUserDiscord}
+                                  >
+                                    Unlink
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm text-white/60">
+                              Update Owned Products
+                            </label>
+
+                            <div>
+                              {data?.products.map((product: any) => (
+                                <div className="flex items-start gap-3">
+                                  <Checkbox
+                                    id={product._id}
+                                    checked={tempUser.products.some(
+                                      (p: any) => p._id === product._id
+                                    )}
+                                    onCheckedChange={(checked) => {
+                                      if (
+                                        confirm(
+                                          "Are you sure you want to update this?"
+                                        )
+                                      ) {
+                                        setTempUser((prev: any) => {
+                                          const updatedProducts = [
+                                            ...(prev.products || []),
+                                          ];
+
+                                          if (checked) {
+                                            if (
+                                              !updatedProducts.some(
+                                                (p) => p._id === product._id
+                                              )
+                                            ) {
+                                              updatedProducts.push(product);
+                                            }
+                                          } else {
+                                            const index =
+                                              updatedProducts.findIndex(
+                                                (p) => p._id === product._id
+                                              );
+                                            if (index > -1)
+                                              updatedProducts.splice(index, 1);
+                                          }
+
+                                          return {
+                                            ...prev,
+                                            products: updatedProducts,
+                                          };
+                                        });
+                                      }
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={product._id}
+                                    className="text-white"
+                                  >
+                                    {product.name}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
                   <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
-                    <CardHeader>
-                      <CardTitle className="text-white">
-                        User Management
-                      </CardTitle>
-                      <CardDescription className="text-white/60">
-                        Manage all users on the platform
-                      </CardDescription>
+                    <CardHeader className="flex">
+                      <div className="flex">
+                        <div className="flex flex-col w-full">
+                          <CardTitle className="text-white">
+                            User Management
+                          </CardTitle>
+                          <CardDescription className="text-white/60">
+                            Manage all users on the platform
+                          </CardDescription>
+                        </div>
+
+                        <div className="w-full">
+                          <p className="text-white font-md font-medium">
+                            Search for user by Roblox ID
+                          </p>
+                          <Input
+                            type="text"
+                            className="text-white"
+                            placeholder="..."
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                          />
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <Table>
@@ -710,36 +1082,45 @@ export default function DashboardPage({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {users.map((user: any) => (
+                          {filteredUsers.map((dbUser: any) => (
                             <TableRow
-                              key={user._id}
+                              key={dbUser._id}
                               className="border-white/10"
                             >
                               <TableCell className="text-white">
-                                {user.robloxId}
+                                {dbUser.robloxId}
                               </TableCell>
                               <TableCell className="text-white">
-                                {user.discordId}
+                                {dbUser.discordId}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
                                   <Button
                                     size="sm"
-                                    onClick={() =>
-                                      handleToggleUserStatus(user._id)
-                                    }
+                                    onClick={() => handleUserProfile(dbUser)}
                                     variant="outline"
                                     className="border-white/10 text-white hover:bg-white/10"
                                   >
-                                    {user.status === "active"
-                                      ? "Ban"
-                                      : "Unban"}
+                                    Profile
                                   </Button>
+                                  {dbUser.isOwner &&
+                                    user._id !== dbUser._id && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleToggleUserStatus(dbUser._id)
+                                        }
+                                        variant="outline"
+                                        className="border-white/10 text-white hover:bg-white/10"
+                                      >
+                                        {dbUser.isAdmin
+                                          ? "Remove Admin"
+                                          : "Make Admin"}
+                                      </Button>
+                                    )}
                                   <Button
                                     size="sm"
-                                    onClick={() =>
-                                      handleDeleteUser(user._id)
-                                    }
+                                    onClick={() => handleDeleteUser(dbUser._id)}
                                     variant="outline"
                                     className="border-red-500/50 text-red-300 hover:bg-red-500/10"
                                   >
@@ -759,10 +1140,14 @@ export default function DashboardPage({
                   <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
                     <CardHeader>
                       <CardTitle className="text-white">
-                        Create New Product
+                        {isEditMode
+                          ? `Edit "${selectedProduct?.name}"`
+                          : "Create New Product"}
                       </CardTitle>
                       <CardDescription className="text-white/60">
-                        Add a new product to the store
+                        {isEditMode
+                          ? `Edit Product Details`
+                          : "Add a new product to the store"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -801,6 +1186,20 @@ export default function DashboardPage({
                         </div>
                       </div>
                       <div className="space-y-2">
+                        <label className="text-sm text-white/60">Stock</label>
+                        <Input
+                          placeholder="Infinite"
+                          value={newProduct.stock}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              stock: e.target.value,
+                            })
+                          }
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <label className="text-sm text-white/60">
                           Description
                         </label>
@@ -811,6 +1210,22 @@ export default function DashboardPage({
                             setNewProduct({
                               ...newProduct,
                               description: e.target.value,
+                            })
+                          }
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/60">
+                          Features (separated by semi-colon)
+                        </label>
+                        <Textarea
+                          placeholder="24/7 Uptime; Free updates..."
+                          value={newProduct.features}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              features: e.target.value,
                             })
                           }
                           className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
@@ -833,28 +1248,171 @@ export default function DashboardPage({
                             className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                           />
                         </div>
+                        <div className="flex space-x-2">
+                          <div className="space-y-2 w-full">
+                            <label className="text-sm text-white/60">
+                              Price ($)
+                            </label>
+                            <Input
+                              type="number"
+                              placeholder="49.99"
+                              value={newProduct.price}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  price: e.target.value,
+                                })
+                              }
+                              className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                            />
+                          </div>
+
+                          <div className="space-y-2 w-full">
+                            <label className="text-sm text-white/60">
+                              Price in Robux
+                            </label>
+                            <Input
+                              type="number"
+                              placeholder="49"
+                              value={newProduct.robux}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  robux: e.target.value,
+                                })
+                              }
+                              className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                            />
+                          </div>
+                        </div>
+
                         <div className="space-y-2">
-                          <label className="text-sm text-white/60">Price</label>
+                          <label className="text-sm text-white/60">File</label>
                           <Input
-                            type="number"
-                            placeholder="49.99"
-                            value={newProduct.price}
+                            type="file"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+
+                              if (!file) return;
+
+                              const arrayBuffer = await file.arrayBuffer();
+
+                              const fileType =
+                                file.type ||
+                                ([".rbxm", ".rbxmx", ".rblx", ".rblxlx"].some(
+                                  (end) => file.name.endsWith(end)
+                                ) &&
+                                  "application/octet-stream") ||
+                                "application/octet-stream";
+
+                              console.log(fileType);
+
+                              setNewProduct({
+                                ...newProduct,
+                                file: {
+                                  fileName: file.name,
+                                  fileType,
+                                  fileData:
+                                    Buffer.from(arrayBuffer).toString("base64"),
+                                },
+                              });
+                            }}
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          />
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <div className="space-y-2 w-full">
+                            <label className="text-sm text-white/60">
+                              Discord Role
+                            </label>
+                            <Select
+                              value={newProduct.discordRoleId}
+                              onValueChange={(v) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  discordRoleId: v,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="w-full text-white">
+                                <SelectValue placeholder="Select a role" />
+                              </SelectTrigger>
+
+                              <SelectContent className="">
+                                <SelectGroup>
+                                  <SelectLabel>Roles</SelectLabel>
+                                  {data!.serverRoles.map(
+                                    (role: { id: string; name: string }) => (
+                                      <SelectItem value={role.id} key={role.id}>
+                                        {role.name}
+                                      </SelectItem>
+                                    )
+                                  )}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2 w-full">
+                            <label className="text-sm text-white/60">
+                              Developer Product Id
+                            </label>
+                            <Input
+                              type="string"
+                              placeholder="4934543234"
+                              value={newProduct.developerProductId}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  developerProductId: e.target.value,
+                                })
+                              }
+                              className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2 w-full">
+                        <FileUploadPreview
+                          images={images}
+                          setImages={setImages}
+                        />
+                        <div className="space-y-2 w-full">
+                          <label className="text-sm text-white/60">
+                            Roblox Decals (comma separated)
+                          </label>
+                          <Input
+                            type="string"
+                            placeholder="4934543234, 23423234, ..."
+                            value={newProduct.decals}
                             onChange={(e) =>
                               setNewProduct({
                                 ...newProduct,
-                                price: e.target.value,
+                                decals: e.target.value,
                               })
                             }
                             className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
                           />
                         </div>
                       </div>
+
                       <Button
                         onClick={handleCreateProduct}
                         className="w-full bg-linear-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600"
                       >
-                        Create Product
+                        {isEditMode ? "Update Product" : "Create Product"}
                       </Button>
+
+                      {!isEditMode && (
+                        <span className="text-xs text-white text-center">
+                          <span className="text-bold text-red-500 font-lg">
+                            *
+                          </span>{" "}
+                          By default, products are private until they are made
+                          public.
+                        </span>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -879,14 +1437,17 @@ export default function DashboardPage({
                               Price
                             </TableHead>
                             <TableHead className="text-white/60">
+                              Price in Robux
+                            </TableHead>
+                            <TableHead className="text-white/60">
                               Actions
                             </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {allProducts.map((product) => (
+                          {allProducts.map((product: any) => (
                             <TableRow
-                              key={product.id}
+                              key={product._id}
                               className="border-white/10"
                             >
                               <TableCell className="text-white">
@@ -896,11 +1457,19 @@ export default function DashboardPage({
                                 {product.category}
                               </TableCell>
                               <TableCell className="text-white">
-                                ${product.price}
+                                $
+                                {product.price.price.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                })}{" "}
+                                USD
+                              </TableCell>
+                              <TableCell className="text-white">
+                                R${product.price.robux.toLocaleString()}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
                                   <Button
+                                    onClick={() => editProduct(product)}
                                     size="sm"
                                     variant="outline"
                                     className="border-white/10 text-white hover:bg-white/10 bg-transparent"
@@ -908,6 +1477,24 @@ export default function DashboardPage({
                                     Edit
                                   </Button>
                                   <Button
+                                    onClick={() =>
+                                      handleProductVisibility(
+                                        product._id,
+                                        !product.isForSale
+                                      )
+                                    }
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-white/10 text-white hover:bg-white/10 bg-transparent"
+                                  >
+                                    {product.isForSale
+                                      ? "Take off Sale"
+                                      : "Put on Sale"}
+                                  </Button>
+                                  <Button
+                                    onClick={() =>
+                                      handleProductDeletion(product._id)
+                                    }
                                     size="sm"
                                     variant="outline"
                                     className="border-red-500/50 text-red-300 hover:bg-red-500/10 bg-transparent"

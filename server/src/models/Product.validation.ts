@@ -4,61 +4,102 @@ import { userModel } from "./User";
 
 // CRUD
 
-const createProductSchema = z.object({
-  name: z.string().refine(
-    async (name) => {
-      const exists = await productModel.exists({
-        name: name.toString(),
+const createProductSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().min(1, "Description is required"),
+    category: z.string().min(1, "Category is required"),
+    tags: z
+      .array(z.string())
+      .default([]),
+    stock: z
+      .string()
+      .default("infinite")
+      .refine((data) => data === "infinite" || !isNaN(parseInt(data!, 10)), {
+        message: "not a number or 'infinite'",
+      }),
+    price: z.object({
+      robux: z.number().default(0),
+      price: z.number().default(-1),
+    }),
+    isForSale: z.boolean().default(false),
+    file: z
+      .object({
+        type: z.string(),
+        name: z.string(),
+        buffer: z.string(),
+      })
+      .optional(),
+    images: z
+      .array(
+        z.object({
+          name: z.string(),
+          type: z.string(),
+          buffer: z.string(),
+        })
+      )
+      .optional(),
+    features: z
+      .array(z.string())
+      .default([]),
+    decals: z.array(z.string()).optional(),
+    discordRoleId: z.string().optional(),
+    developerProductId: z.string().optional(),
+  })
+  .superRefine(async (data, ctx) => {
+    const exists = await productModel.exists({ name: data.name });
+    if (exists) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["name"],
+        message: "Product with this name already exists",
       });
+    }
+  });
 
-      return exists;
-    },
-    { message: "Product already exist exist" }
-  ),
-  description: z.string(),
-  category: z.string(),
-  tags: z
-    .string()
-    .optional()
-    .refine((data) => !data?.split("").length),
-  stock: z
-    .string()
-    .default("inf")
-    .refine((data) => data !== "inf" || !isNaN(parseInt(data!))),
-  price: z.object({
-    robux: z.number(),
-    price: z.number(),
-  }),
-  isForSale: z.boolean().default(false),
-  discordRoleId: z.string().optional(),
-  developerProductId: z.string().optional(),
-});
-
-const updateProductSchema = z.object({
-  name: z.string().optional(),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  tags: z
-    .string()
-    .optional()
-    .refine((data) => !data?.split("").length),
-  stock: z
-    .string()
-    .optional()
-    .refine((data) => data === "inf" || !isNaN(parseInt(data!))),
-  price: z
-    .object({
-      robux: z.number().optional(),
-      price: z.number().optional(),
-    })
-    .optional(),
-  isForSale: z.boolean().optional(),
-  discordRoleId: z.string().optional(),
-});
+const updateProductSchema = z
+  .object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    category: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    stock: z.string().optional(),
+    price: z
+      .object({
+        robux: z.number().optional(),
+        price: z.number().optional(),
+      })
+      .optional(),
+    isForSale: z.boolean().optional(),
+    file: z
+      .object({
+        type: z.string().optional(),
+        name: z.string().optional(),
+        buffer: z.string().optional(),
+      })
+      .optional(),
+    images: z
+      .array(
+        z.object({
+          name: z.string(),
+          type: z.string(),
+          buffer: z.string(),
+        })
+      )
+      .optional(),
+    features: z.array(z.string()).optional(),
+    decals: z.array(z.string()).optional(),
+    discordRoleId: z.string().optional(),
+    developerProductId: z.string().optional(),
+  })
+  .refine((d) => d, {
+    message: "Wtf was the point",
+  });
 
 const createProductReviewSchema = z.object({
   rating: z.number(),
   content: z.string(),
+  username: z.string(),
 });
 
 type CreateProductReviewOptions = z.infer<typeof createProductReviewSchema>;
@@ -80,16 +121,7 @@ const addWhitelistSchema = z
     type: z.enum(["roblox", "discord"]),
     userId: z.string().optional(),
     username: z.string().optional(),
-    productId: z.string().refine(
-      async (id) => {
-        const exists = await productModel.exists({
-          _id: id.toString(),
-        });
-
-        return !exists;
-      },
-      { message: "Product does not exist" }
-    ),
+    productId: z.string(),
   })
   .refine((data) => data.username || data.userId, {
     message: "Either username or userId must be provided",
@@ -122,16 +154,7 @@ const addWhitelistSchema = z
   );
 
 const transferWhitelistSchema = z.object({
-  id: z.string().refine(
-    async (id) => {
-      const exists = await productModel.exists({
-        _id: id.toString(),
-      });
-
-      return !exists;
-    },
-    { message: "Product does not exist" }
-  ),
+  id: z.string(),
   to: z.string(),
 });
 

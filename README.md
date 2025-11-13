@@ -28,6 +28,8 @@ Other services that do all of this and more:
 ### - Create Discord Bot [here](https://discord.com/developers/)
 > Example Permissions: https://prnt.sc/5x2PfYVX0EKF
 
+### - Roblox OAuth Application [here](https://create.roblox.com/dashboard/credentials?activeTab=OAuthTab)
+
 
 # Running the project
 
@@ -56,12 +58,13 @@ Configure Required Files
 ```env
 # Application Variables
 PORT=3000
+JWT_SECRET="secret" # Change this value
+API_KEY="secret" # Change this value
 
 # Database Variables
 MONGO_URI="mongodb://..."
 
 # Discord Secrets
-DISCORD_OAUTH_CLIENT_ID="..." # Copy this from the Discord Developer dashboard
 DISCORD_TOKEN="..." # Copy this from the Discord Developer dashboard
 
 # Discord Guild Variables
@@ -96,4 +99,54 @@ APP_URL="http://localhost:5555"
 SERVER_URL="http://localhost:3000"
 DISCORD_OAUTH_CLIENT_ID="..." # Copy this from the Discord Developer dashboard
 DISCORD_OAUTH_CLIENT_SECRET="..." # Copy this from the Discord Developer dashboard
+ROBLOX_OAUTH_ID=""  # Copy this from Roblox's OAuth dashboard"
+ROBLOX_OAUTH_SECRET="" # Copy this from Roblox's OAuth dashboard
+```
+
+
+# Example Roblox Whitelist
+```lua
+local API_URL = "https://example.com/api/whitelist/check"
+
+local HttpService = game:GetService("HttpService")
+local GroupService = game:GetService("GroupService")
+local RunService = game:GetService("RunService")
+
+function getOwnerId(): number
+	if game.CreatorType == Enum.CreatorType.Group then
+		return GroupService:GetGroupInfoAsync(game.CreatorId).Owner.Id
+	else
+		return game.CreatorId
+	end
+end
+
+local productId = "xyz"
+local ownerId = getOwnerId()
+
+if RunService:IsClient() then error("[Whitelist]: Product does not work on the client or in LocalScripts") end
+if RunService:IsStudio() then error("[Whitelist]: Product does not work in Studio!") end
+
+local url = API_URL .. `?productId={HttpService:UrlEncode(productId)}&robloxId={HttpService:UrlEncode(ownerId)}`
+
+local success, res = pcall(HttpService.RequestAsync, { Url = url })
+
+if success then
+	if not res.Success then
+		error("[Whitelist]: Invalid response from server: " .. HttpService:JSONDecode(res.Body).message)
+	end
+
+	local body = HttpService:JSONDecode(res.Body)
+
+  if not body.data.value then
+    error("[Whitelist]: Unauthorized")
+  end
+else
+	if res == "Http requests are not enabled. Enable via game settings" then
+		error("[Whitelist]: HTTP Requests are disabled")
+	else
+		error("[Whitelist]: Generic error: " .. res)
+	end
+end
+
+-- code here
 ```

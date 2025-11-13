@@ -1,4 +1,5 @@
 import express from "express";
+
 import * as routes from "./routes.config";
 
 import {
@@ -6,6 +7,7 @@ import {
   isAuthenticated,
   ownsProduct,
   validateData,
+  validProductId,
 } from "@middleware";
 
 import {
@@ -26,10 +28,12 @@ import {
   deleteProductReview,
   getAllProducts,
   getAllUsers,
+  getAssignableRoles,
   getAuthenticatedUser,
   getOwnedProducts,
   getProduct,
   getProductReviews,
+  getProducts,
   getRecentPurchases,
   getSiteAnalytics,
   getSiteConfig,
@@ -38,14 +42,17 @@ import {
   transferWhitelist,
   updateProduct,
 } from "controllers";
-import { authenticateUserSchema, removeUserLinkSchema } from "models/User.validation";
+import {
+  authenticateUserSchema,
+  removeUserLinkSchema,
+} from "models/User.validation";
 
 const router = express.Router();
 
-router.get(routes.GET_SITE_CONFIG, isAuthenticated, getSiteConfig);
+router.get(routes.GET_SITE_CONFIG, getSiteConfig);
 
-router.get(routes.GET_PRODUCTS, getAllProducts);
-router.get(routes.GET_PRODUCT_LOOKUP, getProduct);
+router.get(routes.GET_PRODUCTS, getProducts);
+router.get(routes.GET_PRODUCT_LOOKUP, validProductId("params"), getProduct);
 
 router.post(
   routes.POST_CREATE_PRODUCT,
@@ -58,15 +65,27 @@ router.put(
   routes.PUT_UPDATE_PRODUCT,
   isAuthenticated,
   isAdmin,
+  validProductId("params"),
   validateData(updateProductSchema),
   updateProduct
 );
-router.delete(routes.DELETE_PRODUCT, isAuthenticated, isAdmin, deleteProduct);
+router.delete(
+  routes.DELETE_PRODUCT,
+  isAuthenticated,
+  isAdmin,
+  validProductId("params"),
+  deleteProduct
+);
 
-router.get(routes.GET_PRODUCT_REVIEWS, getProductReviews);
+router.get(
+  routes.GET_PRODUCT_REVIEWS,
+  validProductId("params"),
+  getProductReviews
+);
 router.post(
   routes.POST_PRODUCT_REVIEW,
   isAuthenticated,
+  validProductId("params"),
   validateData(createProductReviewSchema),
   ownsProduct("params"),
   createProductReview
@@ -102,6 +121,7 @@ router.post(
   isAuthenticated,
   isAdmin,
   validateData(addWhitelistSchema),
+  validProductId("body", "productId"),
   addWhitelist
 );
 router.post(
@@ -109,17 +129,26 @@ router.post(
   isAuthenticated,
   isAdmin,
   validateData(removeWhitelistSchema),
+  validProductId("body", "productId"),
   removeWhitelist
 );
 router.post(
   routes.POST_TRANSFER_PRODUCT,
   isAuthenticated,
   validateData(transferWhitelistSchema),
+  validProductId("body"),
   ownsProduct("body"),
   transferWhitelist
 );
 
 router.get(routes.GET_USERS, isAuthenticated, isAdmin, getAllUsers);
+router.get(routes.GET_ALL_PRODUCTS, isAuthenticated, isAdmin, getAllProducts);
+router.get(
+  routes.GET_ASSIGNABLE_ROLES,
+  isAuthenticated,
+  isAdmin,
+  getAssignableRoles
+);
 router.get(routes.GET_ANALYTICS, isAuthenticated, isAdmin, getSiteAnalytics);
 router.get(
   routes.GET_RECENT_PURCHASES,
