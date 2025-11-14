@@ -418,7 +418,7 @@ export default function DashboardPage({
   };
 
   const filteredUsers = useMemo(
-    () => users.filter((user: any) => user.robloxId.includes(searchValue)),
+    () => users.filter((user: any) => (user?.robloxId ?? "").includes(searchValue)),
     [searchValue]
   );
 

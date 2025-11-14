@@ -3,7 +3,7 @@ import { getProducts, getSiteConfig } from "@/lib/actions";
 
 export default async function ProductsSection() {
   const config = await getSiteConfig();
-  let products = await getProducts();
+  const products = await getProducts();
 
   return (
     <section className="relative z-20 px-8 py-20">

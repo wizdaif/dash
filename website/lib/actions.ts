@@ -16,13 +16,9 @@ export async function setToken(token: string) {
   const cookieStore = await cookies();
 
   return cookieStore.set("token", token, {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: process.env.NODE_ENV === "production",
-    domain:
-      process.env.NODE_ENV === "development"
-        ? "localhost"
-        : "." + process.env.APP_URL,
-    sameSite: "lax",
+    secure: !process.env.APP_URL?.startsWith("http://"),
+    httpOnly: true,
+    path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
   });
 }
@@ -31,13 +27,10 @@ export async function clearToken() {
   const cookieStore = await cookies();
 
   return cookieStore.set("token", "", {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: process.env.NODE_ENV === "production",
-    domain:
-      process.env.NODE_ENV === "development"
-        ? "localhost"
-        : "." + process.env.APP_URL,
-    sameSite: "lax",
+    secure: !process.env.APP_URL?.startsWith("http://"),
+    httpOnly: true,
+    path: "/",
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
     expires: -1,
   });
 }
@@ -146,7 +139,7 @@ export const getAllUsers = async () =>
 
 export const getOwnedProducts = async (id: string) => {
   try {
-    const request = await fetch(`${process.env.SERVER_URL}/user/profile?type=user&id=${id}`, {
+    const request = await fetch(`${process.env.SERVER_URL}/users/profile?type=user&id=${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

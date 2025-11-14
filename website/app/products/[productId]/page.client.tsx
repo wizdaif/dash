@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Star, ArrowLeft, ShoppingCart } from "lucide-react";
-import { mockProducts, getMockReviews } from "@/lib/mock-data";
 import type { Product, Review } from "@/types";
 import { base64ToFile } from "@/lib/utils";
 

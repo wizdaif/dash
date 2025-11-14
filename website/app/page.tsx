@@ -5,8 +5,10 @@ import { getSiteConfig } from "@/lib/actions";
 import { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { SITE_TITLE: title, SITE_DESCRIPTION: description } =
-    await getSiteConfig();
+  const config = await getSiteConfig();
+
+  const title = config?.SITE_TITLE ?? "dash ecommerce";
+  const description = config?.SITE_DESCRIPTION ?? "powered by getpulserbx.io";
 
   return {
     title,
