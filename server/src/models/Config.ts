@@ -36,6 +36,11 @@ const ConfigSchema = new Schema({
       default:
         "It appears you're missing the role, {roleId} which is required to run this command.",
     },
+    NOT_LINKED: {
+      type: String,
+      default:
+        "This user is not linked currently.",
+    },
   },
   website: {
     SITE_TITLE: {

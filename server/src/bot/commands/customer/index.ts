@@ -1,1 +1,3 @@
-export default [];
+import account from "./account";
+
+export default [account];

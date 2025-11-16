@@ -80,5 +80,6 @@ export type Config = {
     INVALID_HANDLER: string;
     MISSING_PERMISSION: string;
     MISSING_ROLE: string;
+    NOT_LINKED: string;
   };
 };

@@ -1,5 +1,5 @@
 import events from "./events";
-import commands from "./commands"
+import commands from "./commands";
 
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 
@@ -22,8 +22,7 @@ for (const event of events) {
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 
 const mappedCommands = commands.flatMap((cmdGroup) =>
-  cmdGroup.module
-    .map((obj: any) => obj.schema.command.toJSON())
+  cmdGroup.module.map((obj: any) => obj.schema.command.toJSON())
 );
 
 const currentCommands = (await rest.get(
@@ -47,10 +46,15 @@ const needsRefresh = (newCommands: any[], currentCommands: any[]): boolean => {
   return false;
 };
 
+console.log(mappedCommands, currentCommands);
+
 if (needsRefresh(mappedCommands, currentCommands)) {
-  await rest.put(Routes.applicationCommands(process.env.DISCORD_OAUTH_CLIENT_ID!), {
-    body: mappedCommands,
-  });
+  await rest.put(
+    Routes.applicationCommands(process.env.DISCORD_OAUTH_CLIENT_ID!),
+    {
+      body: mappedCommands,
+    }
+  ).then(console.log);
 }
 
 await client.login(process.env.DISCORD_TOKEN);

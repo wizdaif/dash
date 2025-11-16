@@ -20,6 +20,7 @@ import { reviewModel } from "models/Review";
 import { productModel } from "models/Product";
 import { purchaseModel } from "models/Purchase";
 import { ProductImageType } from "@types";
+import { GetUserProfile } from "helpers";
 
 async function getSiteConfig(req: Request, res: Response) {
   const config = await getConfig();
@@ -289,7 +290,7 @@ async function getOwnedProducts(req: Request, res: Response) {
     };
   } else if (type === "user") {
     options = {
-      _id: userId,
+      userId,
     };
   } else if (type === "discord") {
     options = {
@@ -297,13 +298,7 @@ async function getOwnedProducts(req: Request, res: Response) {
     };
   }
 
-  const user = await userModel
-    .findOne(options)
-    .populate([
-      { path: "products.id", model: "products", select: "name images" },
-    ])
-    .select("products")
-    .lean();
+  const user = await GetUserProfile(options);
 
   if (!user)
     return res.status(400).json({
